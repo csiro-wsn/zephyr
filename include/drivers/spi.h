@@ -22,6 +22,7 @@
 #include <zephyr/types.h>
 #include <stddef.h>
 #include <device.h>
+#include <drivers/gpio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -129,11 +130,14 @@ extern "C" {
  *    to act as a CS line
  * @param delay is a delay in microseconds to wait before starting the
  *    transmission and before releasing the CS line
+ * @param gpio_dt_flags is the devicetree flags corresponding to how the CS
+ *    line should be driven.
  */
 struct spi_cs_control {
 	struct device	*gpio_dev;
-	u32_t		gpio_pin;
 	u32_t		delay;
+	gpio_pin_t	gpio_pin;
+	gpio_dt_flags_t	gpio_dt_flags;
 };
 
 /**
