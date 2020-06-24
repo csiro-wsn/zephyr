@@ -19,9 +19,29 @@ static int char_out(uint8_t *data, size_t length, void *ctx)
 {
 	ARG_UNUSED(ctx);
 
+#ifdef CONFIG_PM_DEVICE_IDLE
+	if (uart_dev->pm->enable) {
+		int rc = device_pm_get_undefered(uart_dev);
+
+		if (rc < 0) {
+			/* Enabling the UART instance has failed but this
+			 * function MUST return the number of bytes consumed.
+			 */
+			return length;
+		}
+	}
+#endif /* CONFIG_PM_DEVICE_IDLE */
+
 	for (size_t i = 0; i < length; i++) {
 		uart_poll_out(uart_dev, data[i]);
 	}
+
+#ifdef CONFIG_PM_DEVICE_IDLE
+	if (uart_dev->pm->enable) {
+		/* As errors cannot be returned, ignore the return value */
+		(void)device_pm_put_undefered(uart_dev);
+	}
+#endif /* CONFIG_PM_DEVICE_IDLE */
 
 	return length;
 }
@@ -34,7 +54,7 @@ static void put(const struct log_backend *const backend,
 		struct log_msg *msg)
 {
 	uint32_t flag = IS_ENABLED(CONFIG_LOG_BACKEND_UART_SYST_ENABLE) ?
-		LOG_OUTPUT_FLAG_FORMAT_SYST : 0;
+			LOG_OUTPUT_FLAG_FORMAT_SYST : 0;
 
 	log_backend_std_put(&log_output_uart, flag, msg);
 }
@@ -58,11 +78,11 @@ static void dropped(const struct log_backend *const backend, uint32_t cnt)
 }
 
 static void sync_string(const struct log_backend *const backend,
-		     struct log_msg_ids src_level, uint32_t timestamp,
-		     const char *fmt, va_list ap)
+			struct log_msg_ids src_level, uint32_t timestamp,
+			const char *fmt, va_list ap)
 {
 	uint32_t flag = IS_ENABLED(CONFIG_LOG_BACKEND_UART_SYST_ENABLE) ?
-		LOG_OUTPUT_FLAG_FORMAT_SYST : 0;
+			LOG_OUTPUT_FLAG_FORMAT_SYST : 0;
 
 	log_backend_std_sync_string(&log_output_uart, flag, src_level,
 				    timestamp, fmt, ap);
@@ -73,7 +93,7 @@ static void sync_hexdump(const struct log_backend *const backend,
 			 const char *metadata, const uint8_t *data, uint32_t length)
 {
 	uint32_t flag = IS_ENABLED(CONFIG_LOG_BACKEND_UART_SYST_ENABLE) ?
-		LOG_OUTPUT_FLAG_FORMAT_SYST : 0;
+			LOG_OUTPUT_FLAG_FORMAT_SYST : 0;
 
 	log_backend_std_sync_hexdump(&log_output_uart, flag, src_level,
 				     timestamp, metadata, data, length);
@@ -82,9 +102,9 @@ static void sync_hexdump(const struct log_backend *const backend,
 const struct log_backend_api log_backend_uart_api = {
 	.put = IS_ENABLED(CONFIG_LOG_IMMEDIATE) ? NULL : put,
 	.put_sync_string = IS_ENABLED(CONFIG_LOG_IMMEDIATE) ?
-			sync_string : NULL,
+			   sync_string : NULL,
 	.put_sync_hexdump = IS_ENABLED(CONFIG_LOG_IMMEDIATE) ?
-			sync_hexdump : NULL,
+			    sync_hexdump : NULL,
 	.panic = panic,
 	.init = log_backend_uart_init,
 	.dropped = IS_ENABLED(CONFIG_LOG_IMMEDIATE) ? NULL : dropped,
