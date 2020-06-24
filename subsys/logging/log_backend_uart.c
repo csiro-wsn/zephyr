@@ -13,6 +13,7 @@
 #include <device.h>
 #include <drivers/uart.h>
 #include <sys/__assert.h>
+#include <pm/device_runtime.h>
 
 /* Fixed size to avoid auto-added trailing '\0'.
  * Used if CONFIG_LOG_BACKEND_UART_OUTPUT_DICTIONARY_HEX.
@@ -24,6 +25,17 @@ static const struct device *uart_dev;
 static int char_out(uint8_t *data, size_t length, void *ctx)
 {
 	ARG_UNUSED(ctx);
+
+#ifdef CONFIG_PM_DEVICE_RUNTIME
+	if (uart_dev->pm->enable) {
+		if (pm_device_get(uart_dev) < 0) {
+			/* Enabling the UART instance has failed but this
+			 * function MUST return the number of bytes consumed.
+			 */
+			return length;
+		}
+	}
+#endif /* CONFIG_PM_DEVICE_RUNTIME */
 
 	for (size_t i = 0; i < length; i++) {
 #if defined(CONFIG_LOG_BACKEND_UART_OUTPUT_DICTIONARY_HEX)
@@ -43,6 +55,13 @@ static int char_out(uint8_t *data, size_t length, void *ctx)
 		uart_poll_out(uart_dev, data[i]);
 #endif
 	}
+
+#ifdef CONFIG_PM_DEVICE_RUNTIME
+	if (uart_dev->pm->enable) {
+		/* As errors cannot be returned, ignore the return value */
+		(void)pm_device_put(uart_dev);
+	}
+#endif /* CONFIG_PM_DEVICE_RUNTIME */
 
 	return length;
 }
