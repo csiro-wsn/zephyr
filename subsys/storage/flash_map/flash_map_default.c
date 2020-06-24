@@ -18,21 +18,14 @@
 	COND_CODE_1(DT_NODE_HAS_COMPAT(GPARENT(part), soc_nv_flash), \
 		    (DT_LABEL(DT_PARENT(GPARENT(part)))), (_else_code))
 
-/* if 'jedec,spi-nor' return controller label or punt to _else_code */
-#define IS_JEDEC_SPI_NOR(part, _else_code) \
-	COND_CODE_1(DT_NODE_HAS_COMPAT(GPARENT(part), jedec_spi_nor), \
-		    (DT_LABEL(GPARENT(part))), (_else_code))
+/* default flash controller label */
+#define OTHER_FLASH(part) \
+	DT_LABEL(GPARENT(part))
 
-/* if 'nordic,qspi-nor' return controller label or punt to _else_code */
-#define IS_NORDIC_QSPI_NOR(part, _else_code) \
-	COND_CODE_1(DT_NODE_HAS_COMPAT(GPARENT(part), nordic_qspi_nor), \
-		    (DT_LABEL(GPARENT(part))), (_else_code))
-
-/* return flash controller label based on matching compatible or NULL */
+/* return flash controller label based on matching compatible or grandparent */
 #define DT_FLASH_DEV_FROM_PART(part) \
 	IS_SOC_NV_FLASH(part, \
-	IS_JEDEC_SPI_NOR(part, \
-	IS_NORDIC_QSPI_NOR(part, NULL)))
+	OTHER_FLASH(part)) \
 
 #define FLASH_AREA_FOO(part)				\
 	{.fa_id = DT_FIXED_PARTITION_ID(part),		\
