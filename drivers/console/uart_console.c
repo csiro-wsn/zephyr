@@ -31,6 +31,7 @@
 #include <linker/sections.h>
 #include <sys/atomic.h>
 #include <sys/printk.h>
+#include <pm/device_runtime.h>
 #ifdef CONFIG_UART_CONSOLE_MCUMGR
 #include "mgmt/mcumgr/serial.h"
 #endif
@@ -85,10 +86,28 @@ static int console_out(int c)
 
 #endif  /* CONFIG_UART_CONSOLE_DEBUG_SERVER_HOOKS */
 
+#ifdef CONFIG_PM_DEVICE_RUNTIME
+	if (uart_console_dev->pm->enable) {
+		if (pm_device_get(uart_console_dev) < 0) {
+			/* Enabling the UART instance has failed but this
+			 * function MUST return the byte output.
+			 */
+			return c;
+		}
+	}
+#endif /* CONFIG_PM_DEVICE_RUNTIME */
+
 	if ('\n' == c) {
 		uart_poll_out(uart_console_dev, '\r');
 	}
 	uart_poll_out(uart_console_dev, c);
+
+#ifdef CONFIG_PM_DEVICE_RUNTIME
+	if (uart_console_dev->pm->enable) {
+		/* As errors cannot be returned, ignore the return value */
+		(void)pm_device_put(uart_console_dev);
+	}
+#endif /* CONFIG_PM_DEVICE_RUNTIME */
 
 	return c;
 }
