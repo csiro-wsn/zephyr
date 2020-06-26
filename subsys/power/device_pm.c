@@ -14,8 +14,9 @@
 LOG_MODULE_DECLARE(power);
 
 /* Device PM request type */
-#define DEVICE_PM_SYNC			(0 << 0)
-#define DEVICE_PM_ASYNC			(1 << 0)
+#define DEVICE_PM_SYNC			(1 << 0)
+#define DEVICE_PM_ASYNC			(1 << 1)
+#define DEVICE_PM_UNDEFERED		(1 << 2)
 
 static void device_pm_callback(const struct device *dev,
 			       int retval, void *context, void *arg)
@@ -104,6 +105,25 @@ static int device_pm_request(const struct device *dev,
 		}
 	}
 
+	if ((pm_flags & DEVICE_PM_SYNC) && (&k_sys_work_q.thread == _current)) {
+		LOG_WRN("sync pm operation within system workqueue");
+		/* Swap to undeferred to avoid deadlock */
+		pm_flags = DEVICE_PM_UNDEFERED;
+	}
+
+	if (pm_flags & DEVICE_PM_UNDEFERED) {
+		/* Perform the request immediately instead of defering to
+		 * the system workqueue.
+		 */
+		pm_work_handler(&dev->pm->work);
+		k_poll_signal_check(&dev->pm->signal, &signaled, &result);
+		dev->pm->event.state = K_POLL_STATE_NOT_READY;
+		k_poll_signal_reset(&dev->pm->signal);
+
+		__ASSERT(signaled, "Work did not raise signal");
+		return result == target_state ? 0 : -EIO;
+	}
+
 	k_work_submit(&dev->pm->work);
 
 	/* Return in case of Async request */
@@ -133,7 +153,14 @@ int device_pm_get(const struct device *dev)
 
 int device_pm_get_sync(const struct device *dev)
 {
-	return device_pm_request(dev, DEVICE_PM_ACTIVE_STATE, 0);
+	return device_pm_request(dev,
+			DEVICE_PM_ACTIVE_STATE, DEVICE_PM_SYNC);
+}
+
+int device_pm_get_undefered(const struct device *dev)
+{
+	return device_pm_request(dev,
+			DEVICE_PM_ACTIVE_STATE, DEVICE_PM_UNDEFERED);
 }
 
 int device_pm_put(const struct device *dev)
@@ -144,7 +171,14 @@ int device_pm_put(const struct device *dev)
 
 int device_pm_put_sync(const struct device *dev)
 {
-	return device_pm_request(dev, DEVICE_PM_SUSPEND_STATE, 0);
+	return device_pm_request(dev,
+			DEVICE_PM_SUSPEND_STATE, DEVICE_PM_SYNC);
+}
+
+int device_pm_put_undefered(const struct device *dev)
+{
+	return device_pm_request(dev,
+			DEVICE_PM_SUSPEND_STATE, DEVICE_PM_UNDEFERED);
 }
 
 void device_pm_enable(const struct device *dev)
