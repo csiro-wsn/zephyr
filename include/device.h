@@ -518,6 +518,26 @@ int device_pm_get(const struct device *dev);
 int device_pm_get_sync(const struct device *dev);
 
 /**
+ * @brief Call device resume synchronously based on usage count
+ *
+ * Called by a device driver to mark the device as being used. It
+ * will bring up or resume the device if it is in suspended state
+ * based on the device usage count. This call is blocked until the
+ * device PM state is changed to resume.
+ *
+ * This function calls the transition functions directly, rather
+ * than deferring the operation to the system workqueue. This lets
+ * idle power management be used from within other idle power
+ * management transitions.
+ *
+ * @param dev Pointer to device structure of the specific device driver
+ * the caller is interested in.
+ * @retval 0 If successful.
+ * @retval Errno Negative errno code if failure.
+ */
+int device_pm_get_undefered(const struct device *dev);
+
+/**
  * @brief Call device suspend asynchronously based on usage count
  *
  * Called by a device driver to mark the device as being released.
@@ -547,6 +567,27 @@ int device_pm_put(const struct device *dev);
  * @retval Errno Negative errno code if failure.
  */
 int device_pm_put_sync(const struct device *dev);
+
+/**
+ * @brief Call device suspend synchronously based on usage count
+ *
+ * Called by a device driver to mark the device as being released. It
+ * will put the device to suspended state if is is in active state
+ * based on the device usage count. This call is blocked until the
+ * device PM state is changed to resume.
+ *
+ * This function calls the transition functions directly, rather
+ * than deferring the operation to the system workqueue. This lets
+ * idle power management be used from within other idle power
+ * management transitions.
+ *
+ * @param dev Pointer to device structure of the specific device driver
+ * the caller is interested in.
+ * @retval 0 If successful.
+ * @retval Errno Negative errno code if failure.
+ */
+int device_pm_put_undefered(const struct device *dev);
+
 #else
 static inline void device_pm_enable(const struct device *dev) { }
 static inline void device_pm_disable(const struct device *dev) { }
