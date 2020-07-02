@@ -20,8 +20,8 @@ static int char_out(uint8_t *data, size_t length, void *ctx)
 	ARG_UNUSED(ctx);
 
 #ifdef CONFIG_DEVICE_IDLE_PM
-	if (dev->pm->enable) {
-		int rc = device_pm_get_sync(dev);
+	if (uart_dev->pm->enable) {
+		int rc = device_pm_get_undefered(uart_dev);
 
 		if (rc < 0) {
 			/* Enabling the UART instance has failed but this
@@ -37,9 +37,9 @@ static int char_out(uint8_t *data, size_t length, void *ctx)
 	}
 
 #ifdef CONFIG_DEVICE_IDLE_PM
-	if (dev->pm->enable) {
+	if (uart_dev->pm->enable) {
 		/* As errors cannot be returned, ignore the return value */
-		(void)device_pm_put_sync(dev);
+		(void)device_pm_put_undefered(uart_dev);
 	}
 #endif /* CONFIG_DEVICE_IDLE_PM */
 
