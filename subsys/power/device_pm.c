@@ -18,6 +18,8 @@ LOG_MODULE_DECLARE(power);
 #define DEVICE_PM_ASYNC			(1 << 1)
 #define DEVICE_PM_UNDEFERED		(1 << 2)
 
+static void pm_work_handler(struct k_work *work);
+
 static void device_pm_callback(const struct device *dev,
 			       int retval, void *context, void *arg)
 {
@@ -32,7 +34,14 @@ static void device_pm_callback(const struct device *dev,
 			   DEVICE_PM_FSM_STATE_SUSPENDED);
 	}
 
-	k_work_submit(&dev->pm->work);
+	/**
+	 * Typically this would be submitted as a work queue item.
+	 * However because of the above state setting, the implementation
+	 * never does anything. To allow undeferred operations to complete
+	 * normally, run the function directly here, instead of indirectly
+	 * on the system workqueue.
+	 */
+	pm_work_handler(&dev->pm->work);
 }
 
 static void pm_work_handler(struct k_work *work)
