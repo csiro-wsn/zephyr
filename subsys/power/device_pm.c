@@ -126,6 +126,9 @@ static int device_pm_request(struct device *dev,
 		 */
 		pm_work_handler(&dev->pm->work);
 		k_poll_signal_check(&dev->pm->signal, &signaled, &result);
+		dev->pm->event.state = K_POLL_STATE_NOT_READY;
+		k_poll_signal_reset(&dev->pm->signal);
+
 		__ASSERT(signaled, "Work did not raise signal");
 		return result == target_state ? 0 : -EIO;
 	}
