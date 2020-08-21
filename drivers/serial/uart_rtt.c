@@ -17,9 +17,21 @@ struct uart_rtt_config {
 	u8_t channel;
 };
 
+struct uart_rtt_data {
+#ifdef CONFIG_UART_ASYNC_API
+	uart_callback_t callback;
+	void *user_data;
+#endif /* CONFIG_UART_ASYNC_API */
+};
+
 static inline const struct uart_rtt_config *get_dev_config(struct device *dev)
 {
 	return dev->config_info;
+}
+
+static inline struct uart_rtt_data *get_dev_data(struct device *dev)
+{
+	return dev->driver_data;
 }
 
 static int uart_rtt_init(struct device *dev)
@@ -79,12 +91,25 @@ static void uart_rtt_poll_out(struct device *dev, unsigned char c)
 static int uart_rtt_tx(struct device *dev, const uint8_t *buf, size_t len,
 		       int32_t timeout)
 {
-	unsigned int ch =
-		get_dev_config(dev) ? get_dev_config(dev)->channel : 0;
+	const struct uart_rtt_config *cfg = get_dev_config(dev);
+	struct uart_rtt_data *data = get_dev_data(dev);
+	unsigned int ch = cfg ? cfg->channel : 0;
 
 	ARG_UNUSED(timeout);
 
+	/* Output the buffer */
 	SEGGER_RTT_Write(ch, buf, len);
+
+	/* Send the TX complete callback */
+	if (data->callback) {
+		struct uart_event evt = {
+			.type = UART_TX_DONE,
+			.data.tx.buf = buf,
+			.data.tx.len = len
+		};
+		data->callback(&evt, data->user_data);
+	}
+
 	return 0;
 }
 
@@ -135,12 +160,9 @@ static int uart_rtt_rx_buf_rsp(struct device *dev, uint8_t *buf, size_t len)
 static int uart_rtt_callback_set(struct device *dev, uart_callback_t callback,
 				 void *user_data)
 {
-	/* Asynchronous RX not supported, see uart_rtt_rx_enable */
-	ARG_UNUSED(dev);
-	ARG_UNUSED(callback);
-	ARG_UNUSED(user_data);
-
-	return -ENOTSUP;
+	get_dev_data(dev)->callback = callback;
+	get_dev_data(dev)->user_data = user_data;
+	return 0;
 }
 
 #endif /* CONFIG_UART_ASYNC_API */
@@ -163,23 +185,25 @@ static const struct uart_driver_api uart_rtt_driver_api = {
 #define UART_RTT_CONFIG_NAME(idx)       uart_rtt##idx##_config
 
 #define UART_RTT_CONFIG(idx)						    \
-	static uint8_t							    \
-	uart_rtt##idx##_tx_buf[UART_RTT_PROP(idx, tx_buffer_size)];	    \
-	static uint8_t							    \
-		uart_rtt##idx##_rx_buf[UART_RTT_PROP(idx, rx_buffer_size)]; \
+	static								    \
+	uint8_t uart_rtt##idx##_tx_buf[UART_RTT_PROP(idx, tx_buffer_size)]; \
+	static								    \
+	uint8_t uart_rtt##idx##_rx_buf[UART_RTT_PROP(idx, rx_buffer_size)]; \
 									    \
 	static const struct uart_rtt_config UART_RTT_CONFIG_NAME(idx) = {   \
 		.up_buffer = uart_rtt##idx##_tx_buf,			    \
 		.up_size = sizeof(uart_rtt##idx##_tx_buf),		    \
 		.down_buffer = uart_rtt##idx##_rx_buf,			    \
 		.down_size = sizeof(uart_rtt##idx##_rx_buf),		    \
-	}								    \
+	}
 
 #define UART_RTT_INIT(idx, config)					      \
+	struct uart_rtt_data uart_rtt##idx##_data;			      \
+									      \
 	DEVICE_AND_API_INIT(uart_rtt##idx, DT_LABEL(UART_RTT(idx)),	      \
-			    uart_rtt_init, NULL, config,		      \
+			    uart_rtt_init, &uart_rtt##idx##_data, config,     \
 			    PRE_KERNEL_2, CONFIG_KERNEL_INIT_PRIORITY_DEVICE, \
-			    &uart_rtt_driver_api);
+			    &uart_rtt_driver_api)
 
 #ifdef CONFIG_UART_RTT_0
 UART_RTT_INIT(0, NULL);
