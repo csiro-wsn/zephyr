@@ -74,9 +74,88 @@ static void uart_rtt_poll_out(struct device *dev, unsigned char c)
 	SEGGER_RTT_Write(ch, &c, 1);
 }
 
+#ifdef CONFIG_UART_ASYNC_API
+
+static int uart_rtt_tx(struct device *dev, const uint8_t *buf, size_t len,
+		       int32_t timeout)
+{
+	unsigned int ch =
+		get_dev_config(dev) ? get_dev_config(dev)->channel : 0;
+
+	ARG_UNUSED(timeout);
+
+	SEGGER_RTT_Write(ch, buf, len);
+	return 0;
+}
+
+static int uart_rtt_tx_abort(struct device *dev)
+{
+	/* RTT TX is a memcpy, there is never a transmission to abort */
+	ARG_UNUSED(dev);
+
+	return -EFAULT;
+}
+
+static int uart_rtt_rx_enable(struct device *dev, uint8_t *buf, size_t len,
+			      int32_t timeout)
+{
+	/**
+	 * SEGGER RTT reception is implemented as a direct memory write to RAM
+	 * by a connected debugger. As such there is no hardware interrupt
+	 * or other mechanism to know when the debugger has added data to be
+	 * read. Asynchronous RX does not make sense in such a context, and is
+	 * therefore not supported.
+	 */
+	ARG_UNUSED(dev);
+	ARG_UNUSED(buf);
+	ARG_UNUSED(len);
+	ARG_UNUSED(timeout);
+
+	return -ENOTSUP;
+}
+
+static int uart_rtt_rx_disable(struct device *dev)
+{
+	/* Asynchronous RX not supported, see uart_rtt_rx_enable */
+	ARG_UNUSED(dev);
+
+	return -EFAULT;
+}
+
+static int uart_rtt_rx_buf_rsp(struct device *dev, uint8_t *buf, size_t len)
+{
+	/* Asynchronous RX not supported, see uart_rtt_rx_enable */
+	ARG_UNUSED(dev);
+	ARG_UNUSED(buf);
+	ARG_UNUSED(len);
+
+	return -ENOTSUP;
+}
+
+static int uart_rtt_callback_set(struct device *dev, uart_callback_t callback,
+				 void *user_data)
+{
+	/* Asynchronous RX not supported, see uart_rtt_rx_enable */
+	ARG_UNUSED(dev);
+	ARG_UNUSED(callback);
+	ARG_UNUSED(user_data);
+
+	return -ENOTSUP;
+}
+
+#endif /* CONFIG_UART_ASYNC_API */
+
 static const struct uart_driver_api uart_rtt_driver_api = {
 	.poll_in = uart_rtt_poll_in,
 	.poll_out = uart_rtt_poll_out,
+#ifdef CONFIG_UART_ASYNC_API
+	.callback_set = uart_rtt_callback_set,
+	.tx = uart_rtt_tx,
+	.tx_abort = uart_rtt_tx_abort,
+	.rx_enable = uart_rtt_rx_enable,
+	.rx_buf_rsp = uart_rtt_rx_buf_rsp,
+	.rx_disable = uart_rtt_rx_disable,
+#endif /* CONFIG_UART_ASYNC_API */
 };
 
 #define UART_RTT(idx)                   DT_NODELABEL(rtt##idx)
