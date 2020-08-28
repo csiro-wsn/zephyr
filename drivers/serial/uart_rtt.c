@@ -97,8 +97,16 @@ static int uart_rtt_tx(struct device *dev, const uint8_t *buf, size_t len,
 
 	ARG_UNUSED(timeout);
 
+	/* Claim the RTT lock */
+	if (k_mutex_lock(&rtt_term_mutex, K_NO_WAIT) != 0) {
+		return -EBUSY;
+	}
+
 	/* Output the buffer */
-	SEGGER_RTT_Write(ch, buf, len);
+	SEGGER_RTT_WriteNoLock(ch, buf, len);
+
+	/* Return RTT lock */
+	SEGGER_RTT_UNLOCK();
 
 	/* Send the TX complete callback */
 	if (data->callback) {
