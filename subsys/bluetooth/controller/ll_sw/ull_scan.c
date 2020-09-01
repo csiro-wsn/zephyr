@@ -176,10 +176,6 @@ u8_t ull_scan_enable(struct ll_scan_set *scan)
 	lll->init_addr_type = scan->own_addr_type;
 	ll_addr_get(lll->init_addr_type, lll->init_addr);
 
-#if defined(CONFIG_BT_CTLR_TX_PWR_DYNAMIC_CONTROL)
-	lll->tx_pwr_lvl = RADIO_TXP_DEFAULT;
-#endif /* CONFIG_BT_CTLR_TX_PWR_DYNAMIC_CONTROL */
-
 	ull_hdr_init(&scan->ull);
 	lll_hdr_init(lll, scan);
 
@@ -372,6 +368,12 @@ u32_t ull_scan_filter_pol_get(u16_t handle)
 
 static int init_reset(void)
 {
+#if defined(CONFIG_BT_CTLR_TX_PWR_DYNAMIC_CONTROL)
+	for (u16_t handle = 0U; handle < BT_CTLR_SCAN_MAX; handle++) {
+		ull_scan_set_get(handle)->lll.tx_pwr_lvl = RADIO_TXP_DEFAULT;
+	}
+#endif /* CONFIG_BT_CTLR_TX_PWR_DYNAMIC_CONTROL */
+
 	return 0;
 }
 

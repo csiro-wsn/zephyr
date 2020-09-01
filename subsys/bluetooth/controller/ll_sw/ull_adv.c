@@ -453,9 +453,6 @@ u8_t ll_adv_enable(u8_t enable)
 	}
 
 	lll = &adv->lll;
-#if defined(CONFIG_BT_CTLR_TX_PWR_DYNAMIC_CONTROL)
-	lll->tx_pwr_lvl = RADIO_TXP_DEFAULT;
-#endif /* CONFIG_BT_CTLR_TX_PWR_DYNAMIC_CONTROL */
 
 	pdu_adv = lll_adv_data_peek(lll);
 	pdu_scan = lll_adv_scan_rsp_peek(lll);
@@ -1034,6 +1031,12 @@ u32_t ull_adv_filter_pol_get(u16_t handle)
 
 static int init_reset(void)
 {
+#if defined(CONFIG_BT_CTLR_TX_PWR_DYNAMIC_CONTROL)
+	for (u16_t handle = 0U; handle < BT_CTLR_ADV_MAX; handle++) {
+		ull_adv_set_get(handle)->lll.tx_pwr_lvl = RADIO_TXP_DEFAULT;
+	}
+#endif /* CONFIG_BT_CTLR_TX_PWR_DYNAMIC_CONTROL */
+
 	return 0;
 }
 
