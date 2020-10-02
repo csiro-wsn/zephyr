@@ -283,6 +283,10 @@ config NRFX_SPIM4
 	depends on HAS_HW_NRF_SPIM4
 	select NRFX_SPIM
 
+config NRFX_SPIM_UNINIT_DRIVE_LOW
+	bool "Actively drive SPIM pins low when driver is uninitialized"
+	depends on NRFX_SPIM
+
 config NRFX_SPIS
 	bool "Enable SPIS driver"
 	depends on HAS_HW_NRF_SPIS0 || HAS_HW_NRF_SPIS1 || \
