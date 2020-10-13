@@ -1194,14 +1194,18 @@ static inline void z_vrfy_k_yield(void)
 #include <syscalls/k_yield_mrsh.c>
 #endif
 
-static int32_t z_tick_sleep(int32_t ticks)
+static int32_t z_tick_sleep(k_ticks_t ticks)
 {
 #ifdef CONFIG_MULTITHREADING
 	uint32_t expected_wakeup_time;
 
 	__ASSERT(!arch_is_in_isr(), "");
 
+#ifdef CONFIG_TIMEOUT_64BIT
+	LOG_DBG("thread %p for %" PRId64 " ticks", _current, ticks);
+#else
 	LOG_DBG("thread %p for %d ticks", _current, ticks);
+#endif
 
 	/* wait of 0 ms is treated as a 'yield' */
 	if (ticks == 0) {
