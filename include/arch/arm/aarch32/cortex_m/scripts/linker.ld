@@ -184,6 +184,11 @@ SECTIONS
 
 #include <linker/kobject-text.ld>
 
+/* Located in generated directory. This file is populated by the
+ * zephyr_linker_sources() Cmake function.
+ */
+#include <snippets-pre-text.ld>
+
 	*(.text)
 	*(".text.*")
 	*(".TEXT.*")
@@ -231,6 +236,12 @@ SECTIONS
 
     SECTION_PROLOGUE(_RODATA_SECTION_NAME,,)
 	{
+
+/* Located in generated directory. This file is populated by the
+ * zephyr_linker_sources() Cmake function.
+ */
+#include <snippets-pre-rodata.ld>
+
 	*(.rodata)
 	*(".rodata.*")
 	*(.gnu.linkonce.r.*)
