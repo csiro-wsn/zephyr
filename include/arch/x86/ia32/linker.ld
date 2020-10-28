@@ -97,6 +97,12 @@ SECTIONS
 
 	*(.text_start)
 	*(".text_start.*")
+
+/* Located in generated directory. This file is populated by the
+ * zephyr_linker_sources() Cmake function.
+ */
+#include <snippets-pre-text.ld>
+
 	*(.text)
 	*(".text.*")
 	*(.gnu.linkonce.t.*)
@@ -121,6 +127,12 @@ SECTIONS
 
 	SECTION_PROLOGUE(_RODATA_SECTION_NAME,,)
 	{
+
+/* Located in generated directory. This file is populated by the
+ * zephyr_linker_sources() Cmake function.
+ */
+#include <snippets-pre-rodata.ld>
+
 	*(.rodata)
 	*(".rodata.*")
 	*(.gnu.linkonce.r.*)
