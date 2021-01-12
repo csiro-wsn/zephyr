@@ -86,7 +86,7 @@ static void prevent_false_prev_evt(void)
 	event_enable();
 
 	if (counter_sub(prev_val, now) == 1) {
-		k_busy_wait(15);
+		k_busy_wait(19);
 		event_clear();
 	}
 
