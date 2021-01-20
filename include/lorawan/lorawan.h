@@ -104,6 +104,20 @@ struct lorawan_join_config {
 };
 
 /**
+ * @brief Register a callback to be called when the datarate changes
+ *
+ * The callback is called once upon successfully joining a network and again
+ * each time the datarate changes due to ADR.
+ *
+ * The callback function takes one parameter:
+ *	- dr - updated datarate
+ *
+ * It should execute for as short of a time as possible as it blocks the
+ * LoRaWAN subsystem.
+ */
+void lorawan_register_dr_changed_callback(void (*cb)(enum lorawan_datarate));
+
+/**
  * @brief Join the LoRaWAN network
  *
  * Join the LoRaWAN network using OTAA or AWB.
