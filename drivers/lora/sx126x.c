@@ -18,11 +18,11 @@
 LOG_MODULE_REGISTER(sx126x, CONFIG_LORA_LOG_LEVEL);
 
 #if DT_HAS_COMPAT_STATUS_OKAY(semtech_sx1261)
-#define DT_DRV_COMPAT semtech_sx1261
-#define SX126X_DEVICE_ID SX1261
+#define DT_DRV_COMPAT           semtech_sx1261
+#define SX126X_DEVICE_ID        SX1261
 #elif DT_HAS_COMPAT_STATUS_OKAY(semtech_sx1262)
-#define DT_DRV_COMPAT semtech_sx1262
-#define SX126X_DEVICE_ID SX1262
+#define DT_DRV_COMPAT           semtech_sx1262
+#define SX126X_DEVICE_ID        SX1262
 #else
 #error No SX126x instance in device tree.
 #endif
@@ -31,35 +31,35 @@ BUILD_ASSERT(DT_NUM_INST_STATUS_OKAY(semtech_sx1261) +
 	     DT_NUM_INST_STATUS_OKAY(semtech_sx1262) <= 1,
 	     "Multiple SX12xx instances in DT");
 
-#define HAVE_GPIO_CS		DT_INST_SPI_DEV_HAS_CS_GPIOS(0)
-#define HAVE_GPIO_ANTENNA_ENABLE			\
+#define HAVE_GPIO_CS DT_INST_SPI_DEV_HAS_CS_GPIOS(0)
+#define HAVE_GPIO_ANTENNA_ENABLE \
 	DT_INST_NODE_HAS_PROP(0, antenna_enable_gpios)
-#define HAVE_GPIO_TX_ENABLE	DT_INST_NODE_HAS_PROP(0, tx_enable_gpios)
-#define HAVE_GPIO_RX_ENABLE	DT_INST_NODE_HAS_PROP(0, rx_enable_gpios)
+#define HAVE_GPIO_TX_ENABLE     DT_INST_NODE_HAS_PROP(0, tx_enable_gpios)
+#define HAVE_GPIO_RX_ENABLE     DT_INST_NODE_HAS_PROP(0, rx_enable_gpios)
 
-#define GPIO_CS_LABEL		DT_INST_SPI_DEV_CS_GPIOS_LABEL(0)
-#define GPIO_CS_PIN		DT_INST_SPI_DEV_CS_GPIOS_PIN(0)
-#define GPIO_CS_FLAGS		DT_INST_SPI_DEV_CS_GPIOS_FLAGS(0)
+#define GPIO_CS_LABEL   DT_INST_SPI_DEV_CS_GPIOS_LABEL(0)
+#define GPIO_CS_PIN     DT_INST_SPI_DEV_CS_GPIOS_PIN(0)
+#define GPIO_CS_FLAGS   DT_INST_SPI_DEV_CS_GPIOS_FLAGS(0)
 
-#define GPIO_RESET_PIN		DT_INST_GPIO_PIN(0, reset_gpios)
-#define GPIO_BUSY_PIN		DT_INST_GPIO_PIN(0, busy_gpios)
-#define GPIO_DIO1_PIN		DT_INST_GPIO_PIN(0, dio1_gpios)
-#define GPIO_ANTENNA_ENABLE_PIN	DT_INST_GPIO_PIN(0, antenna_enable_gpios)
-#define GPIO_TX_ENABLE_PIN	DT_INST_GPIO_PIN(0, tx_enable_gpios)
-#define GPIO_RX_ENABLE_PIN	DT_INST_GPIO_PIN(0, rx_enable_gpios)
+#define GPIO_RESET_PIN          DT_INST_GPIO_PIN(0, reset_gpios)
+#define GPIO_BUSY_PIN           DT_INST_GPIO_PIN(0, busy_gpios)
+#define GPIO_DIO1_PIN           DT_INST_GPIO_PIN(0, dio1_gpios)
+#define GPIO_ANTENNA_ENABLE_PIN DT_INST_GPIO_PIN(0, antenna_enable_gpios)
+#define GPIO_TX_ENABLE_PIN      DT_INST_GPIO_PIN(0, tx_enable_gpios)
+#define GPIO_RX_ENABLE_PIN      DT_INST_GPIO_PIN(0, rx_enable_gpios)
 
 #define DIO2_TX_ENABLE DT_INST_PROP(0, dio2_tx_enable)
 
-#define HAVE_DIO3_TCXO		DT_INST_NODE_HAS_PROP(0, dio3_tcxo_voltage)
+#define HAVE_DIO3_TCXO DT_INST_NODE_HAS_PROP(0, dio3_tcxo_voltage)
 #if HAVE_DIO3_TCXO
-#define TCXO_DIO3_VOLTAGE	DT_INST_PROP(0, dio3_tcxo_voltage)
+#define TCXO_DIO3_VOLTAGE DT_INST_PROP(0, dio3_tcxo_voltage)
 #endif
 
 #if DT_INST_NODE_HAS_PROP(0, tcxo_power_startup_delay_ms)
-#define TCXO_POWER_STARTUP_DELAY_MS			\
+#define TCXO_POWER_STARTUP_DELAY_MS \
 	DT_INST_PROP(0, tcxo_power_startup_delay_ms)
 #else
-#define TCXO_POWER_STARTUP_DELAY_MS	0
+#define TCXO_POWER_STARTUP_DELAY_MS 0
 #endif
 
 #define SX126X_CALIBRATION_ALL 0x7f
@@ -335,6 +335,9 @@ void SX126xSetOperatingMode(RadioOperatingModes_t mode)
 		/* Additionally disable the DIO1 interrupt to save power */
 		gpio_pin_interrupt_configure(dev_data.dio1, GPIO_DIO1_PIN,
 					     GPIO_INT_DISABLE);
+#ifdef CONFIG_PM_DEVICE_IDLE
+		device_pm_put_undefered(dev_data.spi);
+#endif /* CONFIG_PM_DEVICE_IDLE */
 		__fallthrough;
 	default:
 		sx126x_set_rx_enable(0);
@@ -426,6 +429,12 @@ void SX126xWakeup(void)
 		.count = 1,
 	};
 
+#ifdef CONFIG_PM_DEVICE_IDLE
+	if (dev_data.spi->pm->enable) {
+		device_pm_get_undefered(dev_data.spi);
+	}
+#endif /* CONFIG_PM_DEVICE_IDLE */
+
 	LOG_DBG("Sending GET_STATUS");
 	ret = spi_write(dev_data.spi, &dev_data.spi_cfg, &tx);
 	if (ret < 0) {
@@ -492,7 +501,7 @@ static int sx126x_lora_init(const struct device *dev)
 	dev_data.spi = device_get_binding(DT_INST_BUS_LABEL(0));
 	if (!dev_data.spi) {
 		LOG_ERR("Cannot get pointer to %s device",
-			    DT_INST_BUS_LABEL(0));
+			DT_INST_BUS_LABEL(0));
 		return -EINVAL;
 	}
 
@@ -531,5 +540,5 @@ static const struct lora_driver_api sx126x_lora_api = {
 };
 
 DEVICE_DT_INST_DEFINE(0, &sx126x_lora_init, device_pm_control_nop, NULL,
-		    NULL, POST_KERNEL, CONFIG_LORA_INIT_PRIORITY,
-		    &sx126x_lora_api);
+		      NULL, POST_KERNEL, CONFIG_LORA_INIT_PRIORITY,
+		      &sx126x_lora_api);
