@@ -8,6 +8,7 @@
 #include <drivers/gpio.h>
 #include <drivers/lora.h>
 #include <drivers/spi.h>
+#include <pm/device_runtime.h>
 #include <zephyr.h>
 
 #include <sx126x/sx126x.h>
@@ -335,6 +336,11 @@ void SX126xSetOperatingMode(RadioOperatingModes_t mode)
 		/* Additionally disable the DIO1 interrupt to save power */
 		gpio_pin_interrupt_configure(dev_data.dio1, GPIO_DIO1_PIN,
 					     GPIO_INT_DISABLE);
+#ifdef CONFIG_PM_DEVICE_RUNTIME
+		if (dev_data.spi->pm->enable) {
+			pm_device_put(dev_data.spi);
+		}
+#endif /* CONFIG_PM_DEVICE_RUNTIME */
 		__fallthrough;
 	default:
 		sx126x_set_rx_enable(0);
@@ -425,6 +431,12 @@ void SX126xWakeup(void)
 		.buffers = &tx_buf,
 		.count = 1,
 	};
+
+#ifdef CONFIG_PM_DEVICE_RUNTIME
+	if (dev_data.spi->pm->enable) {
+		pm_device_get(dev_data.spi);
+	}
+#endif /* CONFIG_PM_DEVICE_RUNTIME */
 
 	LOG_DBG("Sending GET_STATUS");
 	ret = spi_write(dev_data.spi, &dev_data.spi_cfg, &tx);
