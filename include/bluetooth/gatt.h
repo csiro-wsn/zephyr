@@ -183,6 +183,21 @@ struct bt_gatt_include {
 	uint16_t			end_handle;
 };
 
+/** @brief GATT callback structure. */
+struct bt_gatt_cb {
+	/** @brief The ATT MTU has been updated.
+	 *
+	 *  This callback notifies the application that a remote device
+	 *  has changed the ATT MTU.
+	 *
+	 *  @param conn Connection object.
+	 *  @param mtu Updated ATT MTU.
+	 */
+	void (*att_mtu_updated)(struct bt_conn *conn, uint16_t mtu);
+
+	struct bt_gatt_cb *_next;
+};
+
 /** Characteristic Properties Bit field values */
 
 /** @def BT_GATT_CHRC_BROADCAST
@@ -299,6 +314,14 @@ struct bt_gatt_cpf {
  * @ingroup bt_gatt
  * @{
  */
+
+/** @brief Register GATT callbacks.
+ *
+ *  Register callbacks to monitor the state of GATT.
+ *
+ *  @param cb Callback struct.
+ */
+void bt_gatt_cb_register(struct bt_gatt_cb *cb);
 
 /** @brief Register GATT service.
  *

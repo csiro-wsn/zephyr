@@ -71,6 +71,7 @@ struct gatt_sub {
 #endif /* CONFIG_BT_GATT_CLIENT */
 
 static struct gatt_sub subscriptions[SUB_MAX];
+static struct bt_gatt_cb *callback_list;
 
 static const uint16_t gap_appearance = CONFIG_BT_DEVICE_APPEARANCE;
 
@@ -1164,6 +1165,12 @@ static int gatt_unregister(struct bt_gatt_service *svc)
 	}
 
 	return 0;
+}
+
+void bt_gatt_cb_register(struct bt_gatt_cb *cb)
+{
+	cb->_next = callback_list;
+	callback_list = cb;
 }
 
 int bt_gatt_service_register(struct bt_gatt_service *svc)
@@ -4476,6 +4483,17 @@ void bt_gatt_connected(struct bt_conn *conn)
 #if defined(CONFIG_BT_GATT_CLIENT)
 	add_subscriptions(conn);
 #endif /* CONFIG_BT_GATT_CLIENT */
+}
+
+void bt_gatt_att_mtu_updated(struct bt_conn *conn, uint16_t mtu)
+{
+	struct bt_gatt_cb *cb;
+
+	for (cb = callback_list; cb; cb = cb->_next) {
+		if (cb->att_mtu_updated) {
+			cb->att_mtu_updated(conn, mtu);
+		}
+	}
 }
 
 void bt_gatt_encrypt_change(struct bt_conn *conn)

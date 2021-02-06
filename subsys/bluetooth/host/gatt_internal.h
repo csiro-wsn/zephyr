@@ -24,6 +24,7 @@
 
 void bt_gatt_init(void);
 void bt_gatt_connected(struct bt_conn *conn);
+void bt_gatt_att_mtu_updated(struct bt_conn *conn, uint16_t mtu);
 void bt_gatt_encrypt_change(struct bt_conn *conn);
 void bt_gatt_disconnected(struct bt_conn *conn);
 

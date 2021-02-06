@@ -550,6 +550,9 @@ static uint8_t att_mtu_req(struct bt_att_chan *chan, struct net_buf *buf)
 	chan->chan.tx.mtu = chan->chan.rx.mtu;
 
 	BT_DBG("Negotiated MTU %u", chan->chan.rx.mtu);
+
+	bt_gatt_att_mtu_updated(conn, chan->chan.rx.mtu);
+
 	return 0;
 }
 
@@ -654,6 +657,7 @@ process:
 #if defined(CONFIG_BT_GATT_CLIENT)
 static uint8_t att_mtu_rsp(struct bt_att_chan *chan, struct net_buf *buf)
 {
+	struct bt_conn *conn = chan->att->conn;
 	struct bt_att_exchange_mtu_rsp *rsp;
 	uint16_t mtu;
 
@@ -678,6 +682,8 @@ static uint8_t att_mtu_rsp(struct bt_att_chan *chan, struct net_buf *buf)
 	chan->chan.tx.mtu = chan->chan.rx.mtu;
 
 	BT_DBG("Negotiated MTU %u", chan->chan.rx.mtu);
+
+	bt_gatt_att_mtu_updated(conn, chan->chan.rx.mtu);
 
 	return att_handle_rsp(chan, rsp, buf->len, 0);
 }
