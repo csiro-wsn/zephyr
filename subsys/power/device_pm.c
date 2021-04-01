@@ -115,7 +115,9 @@ static int device_pm_request(const struct device *dev,
 	}
 
 	/* Protect synchronous access to the pm signal */
-	k_sem_take(&dev->pm->lock, K_FOREVER);
+	if (!(pm_flags & DEVICE_PM_ASYNC)) {
+		k_sem_take(&dev->pm->lock, K_FOREVER);
+	}
 
 	if ((pm_flags & DEVICE_PM_SYNC) && (&k_sys_work_q.thread == _current)) {
 		LOG_WRN("sync pm operation within system workqueue");
@@ -143,8 +145,6 @@ static int device_pm_request(const struct device *dev,
 
 	/* Return in case of Async request */
 	if (pm_flags & DEVICE_PM_ASYNC) {
-		/* In the Async case, we are not waiting on the pm signal */
-		k_sem_give(&dev->pm->lock);
 		return 0;
 	}
 
