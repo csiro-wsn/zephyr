@@ -64,6 +64,9 @@ BUILD_ASSERT(DT_NUM_INST_STATUS_OKAY(semtech_sx1261) +
 
 #define SX126X_CALIBRATION_ALL 0x7f
 
+K_KERNEL_STACK_DEFINE(sx126x_work_q_stack, 1024);
+struct k_work_q sx126x_work_q;
+
 struct sx126x_data {
 	const struct device *reset;
 	const struct device *busy;
@@ -470,7 +473,7 @@ static void sx126x_dio1_irq_callback(const struct device *dev,
 				     struct gpio_callback *cb, uint32_t pins)
 {
 	if (pins & BIT(GPIO_DIO1_PIN)) {
-		k_work_submit(&dev_data.dio1_irq_work);
+		k_work_submit_to_queue(&sx126x_work_q, &dev_data.dio1_irq_work);
 	}
 }
 
@@ -488,6 +491,12 @@ static int sx126x_lora_init(const struct device *dev)
 	    sx12xx_configure_pin(tx_enable, GPIO_OUTPUT_INACTIVE)) {
 		return -EIO;
 	}
+
+	k_work_q_start(&sx126x_work_q,
+		       sx126x_work_q_stack,
+		       K_KERNEL_STACK_SIZEOF(sx126x_work_q_stack),
+		       -1);
+	k_thread_name_set(&sx126x_work_q.thread, "sx1262_q");
 
 	k_work_init(&dev_data.dio1_irq_work, sx126x_dio1_irq_work_handler);
 
