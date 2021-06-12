@@ -20,6 +20,7 @@
 
 import argparse
 from collections import defaultdict
+import itertools
 import logging
 import os
 import pathlib
@@ -123,7 +124,7 @@ def main():
             write_dep_info(node)
             write_idents_and_existence(node)
             write_bus(node)
-            write_special_props(node)
+            write_special_props(edt, node)
             write_vanilla_props(node)
 
         write_chosen(edt)
@@ -338,7 +339,7 @@ def write_bus(node):
     out_dt_define(f"{node.z_path_id}_BUS", f"DT_{bus.z_path_id}")
 
 
-def write_special_props(node):
+def write_special_props(edt, node):
     # Writes required macros for special case properties, when the
     # data cannot otherwise be obtained from write_vanilla_props()
     # results
@@ -357,6 +358,15 @@ def write_special_props(node):
         macro = f"{node.z_path_id}_PARTITION_ID"
         out_dt_define(macro, flash_area_num)
         flash_area_num += 1
+
+    # Check for overlap with any "reserved-memory"
+    if "/reserved-memory" in edt.path2node:
+        rm = edt.path2node["/reserved-memory"]
+        if node.parent is not rm:
+            for reserved, self_reg in itertools.product(rm.children.values(), node.regs):
+                if reserved.regs[0].overlaps(self_reg):
+                    out_dt_define(f"{node.z_path_id}_OVERLAPS_RESERVED", 1)
+                    break
 
 def write_regs(node):
     # reg property: edtlib knows the right #address-cells and
