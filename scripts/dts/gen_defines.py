@@ -748,6 +748,9 @@ def write_global_compat_info(edt):
         for_each_macros[f"DT_FOREACH_OKAY_INST_{ident}(fn)"] = \
             " ".join(f"fn({edt.compat2nodes[compat].index(node)})"
                      for node in okay_nodes)
+        for_each_macros[f"DT_FOREACH_OKAY_NODE_{ident}(fn)"] = \
+            " ".join(f"fn(DT_{node.z_path_id})"
+                     for node in okay_nodes)
 
     for compat, nodes in edt.compat2nodes.items():
         for node in nodes:
