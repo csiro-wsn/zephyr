@@ -434,12 +434,15 @@ class EDT:
     def _init_luts(self):
         # Initialize node lookup tables (LUTs).
 
+        self.path2node = OrderedDict()
         self.label2node = OrderedDict()
         self.dep_ord2node = OrderedDict()
         self.compat2nodes = defaultdict(list)
         self.compat2okay = defaultdict(list)
 
         for node in self.nodes:
+            self.path2node[node.path] = node
+
             for label in node.labels:
                 self.label2node[label] = node
 
