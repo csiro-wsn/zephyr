@@ -1299,6 +1299,12 @@ class Register:
 
         return "<Register, {}>".format(", ".join(fields))
 
+    def overlaps(self, other):
+        self_end = self.addr + self.size if self.size else self.addr
+        other_end = other.addr + other.size if other.size else other.addr
+
+        return (self.addr < other_end and self_end > other.addr) or \
+                (self_end > other.addr and other_end > self.addr)
 
 class ControllerAndData:
     """
