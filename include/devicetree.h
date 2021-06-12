@@ -417,6 +417,68 @@
 		    (DT_INVALID_NODE))
 
 /**
+ * @brief Call "fn" on all nodes with compatible "compat"
+ *        and status "okay"
+ *
+ * This macro calls "fn(node)" on each node that has a compatible
+ * matching "compat" and with status "okay". Whitespace is added between
+ * invocations.
+ *
+ * Example devicetree fragment:
+ *
+ *     a {
+ *             compatible = "vnd,device";
+ *             status = "okay";
+ *             label = "DEV_A";
+ *     };
+ *
+ *     b {
+ *             compatible = "vnd,device";
+ *             status = "okay";
+ *             label = "DEV_B";
+ *     };
+ *
+ *     c {
+ *             compatible = "vnd,device";
+ *             status = "disabled";
+ *             label = "DEV_C";
+ *     };
+ *
+ * Example usage:
+ *
+ *     #define MY_FN(node) DT_LABEL(node),
+ *
+ *     DT_COMPAT_FOREACH_NODE_STATUS_OKAY(MY_FN)
+ *
+ * This expands to:
+ *
+ *     MY_FN(a_node_id) MY_FN(b_node_id)
+ *
+ * and from there, to either this:
+ *
+ *     "DEV_A", "DEV_B",
+ *
+ * or this:
+ *
+ *     "DEV_B", "DEV_A",
+ *
+ * No guarantees are made about the order that a and b appear in the
+ * expansion.
+ *
+ * Note that "fn" is responsible for adding commas, semicolons, or
+ * other separators or terminators.
+ *
+ *
+ * @param fn Macro to call for each enabled node. Must accept an
+ *           node identified as its only parameter.
+ */
+#define DT_COMPAT_FOREACH_NODE_STATUS_OKAY(compat, fn) \
+	COND_CODE_1(DT_HAS_COMPAT_STATUS_OKAY(compat), \
+		    (UTIL_CAT(DT_FOREACH_OKAY_NODE_,   \
+			      compat)(fn)),	       \
+		    ())
+
+/**
  * @brief Get a devicetree node's full path as a string literal
  *
  * This returns the path to a node from a node identifier. To get a
