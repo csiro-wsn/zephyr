@@ -22,10 +22,10 @@
 /* physical address of RAM */
 #ifdef CONFIG_XIP
 #define ROMABLE_REGION FLASH
-#define RAMABLE_REGION SRAM
+#define RAMABLE_REGION DT_LABEL(DT_CHOSEN(zephyr_sram))
 #else
 #define ROMABLE_REGION SRAM
-#define RAMABLE_REGION SRAM
+#define RAMABLE_REGION DT_LABEL(DT_CHOSEN(zephyr_sram))
 #endif
 
 #if defined(CONFIG_XIP)
@@ -86,7 +86,8 @@ _region_min_align = 4;
 MEMORY
     {
     FLASH                 (rx) : ORIGIN = ROM_ADDR, LENGTH = ROM_SIZE
-    SRAM                  (wx) : ORIGIN = RAM_ADDR, LENGTH = RAM_SIZE
+    /* Generate memory regions for all SRAM nodes */
+    DT_REGIONS_FROM_COMPAT(mmio_sram)
     /* TI CCFG Registers */
     DT_REGION_FROM_NODE_STATUS_OKAY(DT_NODELABEL(ti_ccfg_partition), rwx)
     /* Data & Instruction Tightly Coupled Memory */
@@ -94,12 +95,7 @@ MEMORY
     DT_REGION_FROM_NODE_STATUS_OKAY(DT_CHOSEN(zephyr_dtcm), rw)
     /* STM32 Core Coupled Memory */
     DT_REGION_FROM_NODE_STATUS_OKAY(DT_CHOSEN(zephyr_ccm), rw)
-    /* STM32WB IPC RAM */
-    DT_REGION_FROM_NODE_STATUS_OKAY(DT_NODELABEL(sram1), rw)
-    DT_REGION_FROM_NODE_STATUS_OKAY(DT_NODELABEL(sram2), rw)
-    /* STM32 alternate RAM configurations */
-    DT_REGION_FROM_NODE_STATUS_OKAY(DT_NODELABEL(sram3), rw)
-    DT_REGION_FROM_NODE_STATUS_OKAY(DT_NODELABEL(sram4), rw)
+    /* Fun RAM nodes missing compatibles */
     DT_REGION_FROM_NODE_STATUS_OKAY(DT_NODELABEL(sdram1), rw)
     DT_REGION_FROM_NODE_STATUS_OKAY(DT_NODELABEL(sdram2), rw)
     DT_REGION_FROM_NODE_STATUS_OKAY(DT_NODELABEL(backup_sram), rw)
