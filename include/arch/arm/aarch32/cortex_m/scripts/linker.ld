@@ -88,6 +88,8 @@ MEMORY
     FLASH                 (rx) : ORIGIN = ROM_ADDR, LENGTH = ROM_SIZE
     /* Generate memory regions for all SRAM nodes */
     DT_REGIONS_FROM_COMPAT(mmio_sram)
+    /* Generate memory regions for all reserved-memory nodes */
+    DT_REGIONS_FROM_CHILDREN(DT_PATH(reserved_memory))
     /* TI CCFG Registers */
     DT_REGION_FROM_NODE_STATUS_OKAY(DT_NODELABEL(ti_ccfg_partition), rwx)
     /* Data & Instruction Tightly Coupled Memory */
