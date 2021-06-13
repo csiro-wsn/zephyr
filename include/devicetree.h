@@ -1636,6 +1636,15 @@
 #define DT_NODE_EXISTS(node_id) IS_ENABLED(DT_CAT(node_id, _EXISTS))
 
 /**
+ * @brief Does a node identifier overlap reserved-memory?
+ *
+ * @param node_id a node identifier
+ * @return 1 if the node overlaps a reserved-memory node, 0 otherwise.
+ */
+#define DT_NODE_OVERLAPS_RESERVED_MEMORY(node_id) \
+	DT_CAT(node_id, _OVERLAPS_RESERVED)
+
+/**
  * @brief Does a node identifier refer to a node with a status?
  *
  * Example uses:
