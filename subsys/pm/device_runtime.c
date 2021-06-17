@@ -90,6 +90,8 @@ static void pm_work_handler(struct k_work *work)
 static int pm_device_request(const struct device *dev,
 			     uint32_t target_state, uint32_t pm_flags)
 {
+	bool irq_hack = false;
+	unsigned int irq_key;
 	int ret = 0;
 
 	SYS_PORT_TRACING_FUNC_ENTER(pm, device_request, dev, target_state);
@@ -127,7 +129,26 @@ static int pm_device_request(const struct device *dev,
 		goto out;
 	}
 
-	(void)k_mutex_lock(&dev->pm->lock, K_FOREVER);
+	/* If in an ISR and a transition is not in process:
+	 *     Lock IRQ's and process the transition
+	 * If in an ISR and a transition is in progress:
+	 *     Error out
+	 * If not in an ISR:
+	 *     Lock the mutex to protect transition
+	 */
+	if (k_is_in_isr()) {
+		irq_key = irq_lock();
+		if ((pm_flags == PM_DEVICE_SYNC) && (dev->pm->lock.lock_count == 0)) {
+			/* Synchronous transition in ISR cannot use mutex */
+			irq_hack = true;
+		} else {
+			irq_unlock(irq_key);
+			ret = -EBUSY;
+			goto out;
+		}
+	} else {
+		(void)k_mutex_lock(&dev->pm->lock, K_FOREVER);
+	}
 
 	if (!dev->pm->enable) {
 		ret = -ENOTSUP;
@@ -167,7 +188,11 @@ static int pm_device_request(const struct device *dev,
 	ret = target_state == dev->pm->state ? 0 : -EIO;
 
 out_unlock:
-	(void)k_mutex_unlock(&dev->pm->lock);
+	if (irq_hack) {
+		irq_unlock(irq_key);
+	} else {
+		(void)k_mutex_unlock(&dev->pm->lock);
+	}
 out:
 	SYS_PORT_TRACING_FUNC_EXIT(pm, device_request, dev, ret);
 	return ret;
@@ -175,7 +200,7 @@ out:
 
 int pm_device_get(const struct device *dev)
 {
-	return pm_device_request(dev, PM_DEVICE_STATE_ACTIVE, 0);
+	return pm_device_request(dev, PM_DEVICE_STATE_ACTIVE, PM_DEVICE_SYNC);
 }
 
 int pm_device_get_async(const struct device *dev)
@@ -185,7 +210,7 @@ int pm_device_get_async(const struct device *dev)
 
 int pm_device_put(const struct device *dev)
 {
-	return pm_device_request(dev, PM_DEVICE_STATE_SUSPEND, 0);
+	return pm_device_request(dev, PM_DEVICE_STATE_SUSPEND, PM_DEVICE_SYNC);
 }
 
 int pm_device_put_async(const struct device *dev)
