@@ -1192,12 +1192,6 @@ static int gatt_unregister(struct bt_gatt_service *svc)
 	return 0;
 }
 
-void bt_gatt_cb_register(struct bt_gatt_cb *cb)
-{
-	cb->_next = callback_list;
-	callback_list = cb;
-}
-
 int bt_gatt_service_register(struct bt_gatt_service *svc)
 {
 	int err;
@@ -4624,6 +4618,12 @@ void bt_gatt_connected(struct bt_conn *conn)
 #if defined(CONFIG_BT_GATT_CLIENT)
 	add_subscriptions(conn);
 #endif /* CONFIG_BT_GATT_CLIENT */
+}
+
+void bt_gatt_cb_register(struct bt_gatt_cb *cb)
+{
+	cb->_next = callback_list;
+	callback_list = cb;
 }
 
 void bt_gatt_att_mtu_updated(struct bt_conn *conn, uint16_t mtu)
