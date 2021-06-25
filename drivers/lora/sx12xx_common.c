@@ -20,6 +20,7 @@ LOG_MODULE_REGISTER(sx12xx_common, CONFIG_LORA_LOG_LEVEL);
 static struct sx12xx_data {
 	struct k_sem data_sem;
 	RadioEvents_t events;
+	lora_recv_cb rx_cb;
 	uint8_t *rx_buf;
 	uint8_t rx_len;
 	int8_t snr;
@@ -50,14 +51,28 @@ int __sx12xx_configure_pin(const struct device * *dev, const char *controller,
 static void sx12xx_ev_rx_done(uint8_t *payload, uint16_t size, int16_t rssi,
 			      int8_t snr)
 {
-	Radio.Sleep();
+	/* Asynchronous reception */
+	if (dev_data.rx_cb) {
+		/* Run user callback */
+		dev_data.rx_cb(NULL, payload, size, rssi, snr);
+		/* If the callback didn't cancel further reception,
+		 * start RX again.
+		 */
+		if (dev_data.rx_cb) {
+			Radio.Rx(0);
+		}
+	}
+	/* Synchronous reception */
+	else {
+		Radio.Sleep();
 
-	dev_data.rx_buf = payload;
-	dev_data.rx_len = size;
-	dev_data.rssi = rssi;
-	dev_data.snr = snr;
+		dev_data.rx_buf = payload;
+		dev_data.rx_len = size;
+		dev_data.rssi = rssi;
+		dev_data.snr = snr;
 
-	k_sem_give(&dev_data.data_sem);
+		k_sem_give(&dev_data.data_sem);
+	}
 }
 
 static void sx12xx_ev_tx_done(void)
@@ -79,6 +94,11 @@ int sx12xx_lora_recv(const struct device *dev, uint8_t *data, uint8_t size,
 		     k_timeout_t timeout, int16_t *rssi, int8_t *snr)
 {
 	int ret;
+
+	/* Validate asynchronous RX not in progress */
+	if (dev_data.rx_cb) {
+		return -EINVAL;
+	}
 
 	Radio.SetMaxPayloadLength(MODEM_LORA, 255);
 	Radio.Rx(0);
@@ -112,6 +132,33 @@ int sx12xx_lora_recv(const struct device *dev, uint8_t *data, uint8_t size,
 	}
 
 	return dev_data.rx_len;
+}
+
+int sx12xx_lora_recv_async(const struct device *dev, lora_recv_cb cb)
+{
+	/* Handle RX cancel */
+	if (!cb) {
+		if (dev_data.rx_cb) {
+			/* Put radio to sleep */
+			Radio.Sleep();
+			dev_data.rx_cb = NULL;
+		}
+		return 0;
+	}
+
+	/* Handle reception already running */
+	if (dev_data.rx_cb) {
+		dev_data.rx_cb = cb;
+		return 0;
+	}
+
+	/* Store the callback */
+	dev_data.rx_cb = cb;
+
+	/* Enable the radio */
+	Radio.SetMaxPayloadLength(MODEM_LORA, 255);
+	Radio.Rx(0);
+	return 0;
 }
 
 int sx12xx_lora_config(const struct device *dev,
