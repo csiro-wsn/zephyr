@@ -18,6 +18,7 @@
 LOG_MODULE_REGISTER(sx12xx_common, CONFIG_LORA_LOG_LEVEL);
 
 static struct sx12xx_data {
+	struct k_sem radio_free;
 	struct k_sem data_sem;
 	RadioEvents_t events;
 	lora_recv_cb rx_cb;
@@ -27,7 +28,7 @@ static struct sx12xx_data {
 	int16_t rssi;
 } dev_data;
 
-int __sx12xx_configure_pin(const struct device * *dev, const char *controller,
+int __sx12xx_configure_pin(const struct device **dev, const char *controller,
 			   gpio_pin_t pin, gpio_flags_t flags)
 {
 	int err;
@@ -78,11 +79,16 @@ static void sx12xx_ev_rx_done(uint8_t *payload, uint16_t size, int16_t rssi,
 static void sx12xx_ev_tx_done(void)
 {
 	Radio.Sleep();
+	/* Radio is free again */
+	k_sem_give(&dev_data.radio_free);
 }
 
 int sx12xx_lora_send(const struct device *dev, uint8_t *data,
 		     uint32_t data_len)
 {
+	/* Wait for radio to be free */
+	k_sem_take(&dev_data.radio_free, K_FOREVER);
+
 	Radio.SetMaxPayloadLength(MODEM_LORA, data_len);
 
 	Radio.Send(data, data_len);
@@ -94,6 +100,9 @@ int sx12xx_lora_recv(const struct device *dev, uint8_t *data, uint8_t size,
 		     k_timeout_t timeout, int16_t *rssi, int8_t *snr)
 {
 	int ret;
+
+	/* Wait for radio to be free */
+	k_sem_take(&dev_data.radio_free, K_FOREVER);
 
 	/* Validate asynchronous RX not in progress */
 	if (dev_data.rx_cb) {
@@ -108,6 +117,8 @@ int sx12xx_lora_recv(const struct device *dev, uint8_t *data, uint8_t size,
 		LOG_INF("Receive timeout");
 		/* Manually transition to sleep mode on timeout */
 		Radio.Sleep();
+		/* Radio is free again */
+		k_sem_give(&dev_data.radio_free);
 		return ret;
 	}
 
@@ -131,6 +142,9 @@ int sx12xx_lora_recv(const struct device *dev, uint8_t *data, uint8_t size,
 		*snr = dev_data.snr;
 	}
 
+	/* Radio is free again */
+	k_sem_give(&dev_data.radio_free);
+
 	return dev_data.rx_len;
 }
 
@@ -142,6 +156,8 @@ int sx12xx_lora_recv_async(const struct device *dev, lora_recv_cb cb)
 			/* Put radio to sleep */
 			Radio.Sleep();
 			dev_data.rx_cb = NULL;
+			/* Radio is free again */
+			k_sem_give(&dev_data.radio_free);
 		}
 		return 0;
 	}
@@ -151,6 +167,9 @@ int sx12xx_lora_recv_async(const struct device *dev, lora_recv_cb cb)
 		dev_data.rx_cb = cb;
 		return 0;
 	}
+
+	/* Wait for radio to be free */
+	k_sem_take(&dev_data.radio_free, K_FOREVER);
 
 	/* Store the callback */
 	dev_data.rx_cb = cb;
@@ -192,6 +211,7 @@ int sx12xx_lora_test_cw(const struct device *dev, uint32_t frequency,
 
 int sx12xx_init(const struct device *dev)
 {
+	k_sem_init(&dev_data.radio_free, 1, 1);
 	k_sem_init(&dev_data.data_sem, 0, K_SEM_MAX_LIMIT);
 
 	dev_data.events.TxDone = sx12xx_ev_tx_done;
